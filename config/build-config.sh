@@ -20,19 +20,19 @@ system_config() {
       echo "DESKTOP_ENV=$2"
       ;;
     "ubuntu-server")
-      echo "UBUNTU_VERSION=${UBUNTU_VERSION:-noble}"
+      echo "UBUNTU_VERSION=${UBUNTU_VERSION:-resolute}"
       echo "IMAGE_SIZE=3G"
       echo "IS_DESKTOP=false"
       echo "DESKTOP_ENV="
       ;;
     "ubuntu-gnome")
-      echo "UBUNTU_VERSION=${UBUNTU_VERSION:-noble}"
+      echo "UBUNTU_VERSION=${UBUNTU_VERSION:-resolute}"
       echo "IMAGE_SIZE=8G"
       echo "IS_DESKTOP=true"
       echo "DESKTOP_ENV=gnome"
       ;;
     "ubuntu-phosh")
-      echo "UBUNTU_VERSION=${UBUNTU_VERSION:-noble}"
+      echo "UBUNTU_VERSION=${UBUNTU_VERSION:-resolute}"
       echo "IMAGE_SIZE=8G"
       echo "IS_DESKTOP=true"
       echo "DESKTOP_ENV=$2"
