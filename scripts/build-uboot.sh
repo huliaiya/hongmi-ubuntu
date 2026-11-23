@@ -1,89 +1,60 @@
 #!/bin/bash
 # =============================================================================
-# 从源码编译 Xiaomi Raphael (SM8150) U-Boot
+# 获取 Xiaomi Raphael (SM8150) U-Boot 预编译固件
 # -----------------------------------------------------------------------------
-# 源码上游：Aospa-raphael-unofficial/u-boot（主线 U-Boot 的 raphael/SM8150 支持分支）
-# 产物：u-boot-sm8150-xiaomi-raphael.img（ELF，可尝试 fastboot flash abl_a/abl_b）
-#       并打包为 u-boot-sm8150-xiaomi-raphael.zip
+# U-Boot 由上游开发者使用私有补丁编译（公开源码 Aospa-raphael-unofficial/u-boot
+# 并不包含 raphael/sm8150 设备支持，无法从源码编出可用固件），因此本脚本改为
+# 直接下载上游 release 中经过验证的预编译固件。
+#
+# 固件来源：GengWei1997/linux-xiaomi-raphael-uboot  release v1.0.0
+# 默认版本：u-boot-sm8150-xiaomi-raphael-20260911.zip（日期最新）
+#
+# 产物：uboot-out/u-boot-sm8150-xiaomi-raphael.zip
+#       （统一命名，供 workflow 后续校验/上传/发布步骤使用）
 #
 # 使用方式：
 #   bash scripts/build-uboot.sh
 #
 # 可用环境变量覆盖：
-#   UBOOT_REPO       源码仓库（默认 Aospa-raphael-unofficial/u-boot）
-#   UBOOT_BRANCH     分支（默认 main）
-#   UBOOT_DEFCONFIG  defconfig（默认 qcom_defconfig）
-#   UBOOT_DT         设备树（默认 qcom/sm8150-xiaomi-raphael；编译期经 fragment 覆盖）
-#   CLANG_VERSION    锁定 clang 版本（默认用系统 clang，LLVM=1）
-#   OUT_DIR          产物目录（默认 uboot-out）
+#   UBOOT_REPO     固件所在仓库（默认 GengWei1997/linux-xiaomi-raphael-uboot）
+#   UBOOT_TAG      release 标签（默认 v1.0.0）
+#   UBOOT_ASSET    固件文件名（默认 u-boot-sm8150-xiaomi-raphael-20260911.zip）
+#   OUT_DIR        产物目录（默认 uboot-out）
 #
-# 备注：高通平台的 U-Boot 是否可直接刷写、需不需要额外签名/打包成 ABL，
-#       取决于机型/bootloader 状态；本脚本产出标准编译产物 u-boot.elf。
+# 备注：高通平台 U-Boot 刷写存在变砖风险，请确认设备状态后再操作。
 # =============================================================================
 set -e
 
-UBOOT_REPO="${UBOOT_REPO:-Aospa-raphael-unofficial/u-boot}"
-UBOOT_BRANCH="${UBOOT_BRANCH:-main}"
-UBOOT_DEFCONFIG="${UBOOT_DEFCONFIG:-qcom_defconfig}"
-UBOOT_DT="${UBOOT_DT:-qcom/sm8150-xiaomi-raphael}"
-CLANG_VER="${CLANG_VERSION:-}"
+UBOOT_REPO="${UBOOT_REPO:-GengWei1997/linux-xiaomi-raphael-uboot}"
+UBOOT_TAG="${UBOOT_TAG:-v1.0.0}"
+UBOOT_ASSET="${UBOOT_ASSET:-u-boot-sm8150-xiaomi-raphael-20260911.zip}"
 OUT_DIR="${OUT_DIR:-uboot-out}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] 🔧 从源码编译 U-Boot"
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 源码: ${UBOOT_REPO} @ ${UBOOT_BRANCH}"
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 配置: ${UBOOT_DEFCONFIG}"
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 设备树: ${UBOOT_DT}"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] 🔧 获取预编译 U-Boot 固件"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 来源: ${UBOOT_REPO} @ ${UBOOT_TAG}"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 固件: ${UBOOT_ASSET}"
 
-WORKDIR=$(mktemp -d)
-trap 'rm -rf "$WORKDIR"' EXIT
+DL_URL="https://github.com/${UBOOT_REPO}/releases/download/${UBOOT_TAG}/${UBOOT_ASSET}"
+DEST_DIR="${ROOT_DIR}/${OUT_DIR}"
+mkdir -p "$DEST_DIR"
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 克隆 U-Boot 源码 ..."
-git clone --depth 1 --branch "$UBOOT_BRANCH" \
-    "https://github.com/${UBOOT_REPO}.git" "$WORKDIR/u-boot"
+TMP_ZIP=$(mktemp)
+trap 'rm -f "$TMP_ZIP"' EXIT
 
-cd "$WORKDIR/u-boot"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 下载中 ..."
+curl -fsSL --retry 3 --retry-delay 2 -o "$TMP_ZIP" "$DL_URL"
 
-# 通用 make 封装：ARCH=arm64 + LLVM 工具链，可选 ccache 与 clang 版本
-UBMAKE() {
-    local llvm="LLVM=1"
-    [ -n "$CLANG_VER" ] && llvm="LLVM=-${CLANG_VER}"
-    make -j"$(nproc)" ARCH=arm64 "$llvm" "$@"
-}
-
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 生成配置 (${UBOOT_DEFCONFIG}) ..."
-UBMAKE O=build "$UBOOT_DEFCONFIG"
-
-# 覆盖默认设备树为 raphael（如上游 defconfig 默认非 raphael）
-if command -v scripts/config >/dev/null 2>&1; then
-    scripts/config --file build/.config --set-str DEFAULT_DEVICE_TREE "$UBOOT_DT"
-    # raphael 需要 LPA/XHCI 等；关闭不必要的调试
-    scripts/config --file build/.config --disable TOOLS_ONLY
+# 基本完整性检查：非空且是 zip
+[ -s "$TMP_ZIP" ] || { echo "错误: 下载的固件为空" >&2; exit 1; }
+if command -v unzip >/dev/null 2>&1; then
+    unzip -tq "$TMP_ZIP" >/dev/null 2>&1 || { echo "错误: 固件 zip 损坏" >&2; exit 1; }
 fi
 
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 编译 U-Boot ..."
-UBMAKE O=build olddefconfig
-UBMAKE O=build
+# 统一命名为 workflow 约定的文件名
+cp -f "$TMP_ZIP" "${DEST_DIR}/u-boot-sm8150-xiaomi-raphael.zip"
 
-# 定位 ELF 产物（不同版本可能叫 u-boot 或 u-boot.elf）
-UBIN=""
-for c in build/u-boot.elf build/u-boot; do
-    [ -f "$c" ] && UBIN="$c" && break
-done
-if [ -z "$UBIN" ]; then
-    echo "错误: 未找到 U-Boot 编译产物 (build/u-boot.elf 或 build/u-boot)" >&2
-    exit 1
-fi
-
-cd "$WORKDIR"
-mkdir -p "$ROOT_DIR/$OUT_DIR"
-IMG="$ROOT_DIR/$OUT_DIR/u-boot-sm8150-xiaomi-raphael.img"
-cp "$UBIN" "$IMG"
-
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 打包 zip ..."
-( cd "$ROOT_DIR/$OUT_DIR" && 7z a -tzip u-boot-sm8150-xiaomi-raphael.zip u-boot-sm8150-xiaomi-raphael.img >/dev/null )
-
-echo "[$(date +'%Y-%m-%d %H:%M:%S')] ✅ U-Boot 编译完成:"
-ls -lh "$ROOT_DIR/$OUT_DIR"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] ✅ U-Boot 固件就绪:"
+ls -lh "${DEST_DIR}/u-boot-sm8150-xiaomi-raphael.zip"
