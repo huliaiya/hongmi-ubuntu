@@ -1,8 +1,8 @@
 <div align="center">
 
-# <img src="https://img.shields.io/badge/Device-huliboot-FF6900?style=for-the-badge&logo=android&logoColor=white" alt="Device"/> <img src="https://img.shields.io/badge/Linux-Ubuntu_25.10-E95420?style=for-the-badge&logo=linux&logoColor=white" alt="Linux"/>
+# <img src="https://img.shields.io/badge/Device-huliboot-FF6900?style=for-the-badge&logo=android&logoColor=white" alt="Device"/> <img src="https://img.shields.io/badge/Linux-Ubuntu_24.04-E95420?style=for-the-badge&logo=linux&logoColor=white" alt="Linux"/>
 
-# 📱 huliboot Ubuntu 25.10 构建项目
+# 📱 huliboot Ubuntu 24.04 构建项目
 
 ### huliboot · 从源码构建内核与 U-Boot · 一键产出 GNOME 桌面系统镜像
 
@@ -16,11 +16,11 @@
 
 ## ✨ 项目简介
 
-本项目为 **huliboot（基于 Redmi K20 Pro / 小米 9T Pro，代号 Raphael，SM8150）** 专属的 **Ubuntu 25.10（resolute）** 系统镜像构建方案，默认产出 **GNOME 桌面版**。系统品牌名、主机名、USB 设备名均已统一为 `huliboot`。
+本项目为 **huliboot（基于 Redmi K20 Pro / 小米 9T Pro，代号 Raphael，SM8150）** 专属的 **Ubuntu 24.04 LTS（noble）** 系统镜像构建方案，默认产出 **GNOME 桌面版**。系统品牌名、主机名、USB 设备名均已统一为 `huliboot`。
 
 与常见「下载预编译内核包再打包系统」的方案不同：**本项目在构建时从源码现场编译 Linux 内核，并可独立编译 U-Boot**，整个链路自包含在本仓库内，不依赖外部内核 deb 仓库。编译全部交由 **GitHub Actions 工作流**完成，点一下即可产出可刷机镜像。
 
-> **默认配置**：仅构建 `ubuntu-gnome` + `resolute`（Ubuntu 25.10），内核版本 `7.3`。
+> **默认配置**：仅构建 `ubuntu-gnome` + `noble`（Ubuntu 24.04 LTS），内核版本 `7.3`。
 
 ## 🎯 构建特性
 
@@ -28,7 +28,7 @@
 |:---|:---|
 | 🐧 **内核** | 从 [`GengWei1997/linux`](https://github.com/GengWei1997/linux) 的 `raphael-<版本>` 分支源码编译，使用本仓库 `config/raphael.config` 配置，`make deb-pkg` 产出 image/headers |
 | 🔧 **U-Boot** | 从 [`Aospa-raphael-unofficial/u-boot`](https://github.com/Aospa-raphael-unofficial/u-boot) 源码独立编译，脚本 `scripts/build-uboot.sh` |
-| 🖥️ **系统** | Ubuntu 25.10 (resolute) + GNOME 桌面 |
+| 🖥️ **系统** | Ubuntu 24.04 LTS (noble) + GNOME 桌面 |
 | 🧩 **固件** | 高通 firmware、ALSA UCM 配置随镜像集成 |
 | 🤖 **自动化** | GitHub Actions 一键触发，产物自动发布到 Releases |
 
@@ -58,7 +58,7 @@
 
 1. **Fork** 本仓库至个人 GitHub 账号
 2. 进入 **Actions** → 选择「构建系统镜像」工作流 → 点击 **Run workflow**
-3. 默认参数即为 `ubuntu-gnome` + `resolute` + 内核 `7.3`，按需调整后运行
+3. 默认参数即为 `ubuntu-gnome` + `noble` + 内核 `7.3`，按需调整后运行
 4. 工作流会**从源码编译内核**（`scripts/build-kernel.sh`）**与 U-Boot**（`scripts/build-uboot.sh`），全程在 GitHub Actions 完成，再打包系统镜像
 5. 构建完成后镜像与 U-Boot 固件自动发布至 Releases
 
@@ -72,7 +72,7 @@ sudo apt install -y mmdebstrap ubuntu-keyring p7zip-full build-essential \
   debhelper rsync kmod cpio
 
 # 一键构建（内核从源码编译 + 打包系统镜像）
-sudo env SYSTEM_TYPE=ubuntu-gnome UBUNTU_VERSION=resolute KERNEL_VERSION=7.3 \
+sudo env SYSTEM_TYPE=ubuntu-gnome UBUNTU_VERSION=noble KERNEL_VERSION=7.3 \
   BOOTSTRAP_TOOL=mmdebstrap bash build.sh ubuntu-gnome 7.3
 ```
 
