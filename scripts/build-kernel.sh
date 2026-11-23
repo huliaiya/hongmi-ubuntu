@@ -20,9 +20,26 @@ set -e
 KERNEL_VERSION="${1:-7.3}"
 OUT_DIR="${2:-xiaomi-raphael-debs_${KERNEL_VERSION}}"
 
-# 内核源码仓库与分支（raphael-<版本> 分支由上游 GengWei1997/linux 维护）
+# 内核源码仓库与分支（上游 GengWei1997/linux 的分支命名形如 raphael-v7.3.0）
+# 把用户传入的版本（如 7.3 / v7.3 / 7.3.0 / raphael-v7.3.0）规范化为 raphael-vX.Y.Z
+normalize_kernel_branch() {
+    local v="$1"
+    # 去掉可能的 raphael- 前缀
+    v="${v#raphael-}"
+    # 补前导 v
+    [[ "$v" == v* ]] || v="v${v}"
+    # 补 .0 使成为三段式（v7.3 -> v7.3.0）
+    local num="${v#v}"
+    case "$num" in
+        *.*.*) ;;                 # 已是 x.y.z
+        *.*)   v="${v}.0" ;;      # x.y -> x.y.0
+        *)     v="${v}.0.0" ;;    # x -> x.0.0
+    esac
+    echo "raphael-${v}"
+}
+
 KERNEL_REPO="${KERNEL_REPO:-GengWei1997/linux}"
-KERNEL_BRANCH="${KERNEL_BRANCH:-raphael-${KERNEL_VERSION}}"
+KERNEL_BRANCH="${KERNEL_BRANCH:-$(normalize_kernel_branch "$KERNEL_VERSION")}"
 
 # 本仓库内的内核配置片段
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
