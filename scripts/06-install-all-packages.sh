@@ -26,7 +26,7 @@ elif [[ "$SYSTEM_TYPE" == *"ubuntu-"* ]]; then
     fi
 fi
 
-# 注意：hexagonrpcd 在 Ubuntu noble(24.04) 官方源中不存在，故不安装（plucky/resolute 起才有）
+# 注意：hexagonrpcd 在 noble 源中不存在，改由下方从 plucky backport 的 deb 单独安装
 DEVICE_PACKAGES="rmtfs protection-domain-mapper tqftpserv qrtr-tools libqmi-utils"
 
 if [[ "$SYSTEM_TYPE" != *"server"* ]]; then
@@ -124,6 +124,33 @@ if [ -f "$KERNEL_DEBS_DIR/alsa-xiaomi-raphael.deb" ]; then
     cp "$KERNEL_DEBS_DIR/alsa-xiaomi-raphael.deb" rootdir/tmp/
     chroot rootdir dpkg -i /tmp/alsa-xiaomi-raphael.deb
     rm rootdir/tmp/alsa-xiaomi-raphael.deb
+fi
+
+# hexagonrpcd（SDSP 传感器守护进程）：noble 源中没有，从 plucky backport 的 deb 安装。
+# 提供加速度计/陀螺仪/环境光/距离传感器支持（自动旋转、自动亮度、通话熄屏等）。
+if [ -f "$KERNEL_DEBS_DIR/libhexagonrpc0.3_0.3.2-1_arm64.deb" ] && \
+   [ -f "$KERNEL_DEBS_DIR/hexagonrpcd_0.3.2-1_arm64.deb" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 安装 hexagonrpcd (SDSP 传感器)"
+    chroot rootdir bash -c 'apt-get install -y adduser 2>/dev/null || true'
+    cp "$KERNEL_DEBS_DIR"/libhexagonrpc0.3_0.3.2-1_arm64.deb rootdir/tmp/
+    cp "$KERNEL_DEBS_DIR"/hexagonrpcd_0.3.2-1_arm64.deb rootdir/tmp/
+    # 先装依赖库，再装守护进程（dpkg 不自动解决依赖，顺序很重要）
+    chroot rootdir dpkg -i /tmp/libhexagonrpc0.3_0.3.2-1_arm64.deb
+    chroot rootdir dpkg -i /tmp/hexagonrpcd_0.3.2-1_arm64.deb
+    rm -f rootdir/tmp/libhexagonrpc0.3_0.3.2-1_arm64.deb rootdir/tmp/hexagonrpcd_0.3.2-1_arm64.deb
+
+    # 固定 sdsp 设备、直接调用真实二进制（绕开 wrapper 默认参数）、崩溃自动重启
+    mkdir -p rootdir/etc/systemd/system/hexagonrpcd.service.d/
+    cat > rootdir/etc/systemd/system/hexagonrpcd.service.d/sdsp.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/hexagonrpc/hexagonrpcd -f /dev/fastrpc-sdsp -d sdsp -s
+Restart=always
+RestartSec=3
+EOF
+    # 尽早启动，避免被 UIM 阻塞拖出 SLPI 看门狗窗口
+    sed -i '/^After=multi-user.target$/d' rootdir/usr/lib/systemd/system/hexagonrpcd.service 2>/dev/null || true
+    chroot rootdir systemctl enable hexagonrpcd 2>/dev/null || true
 fi
 
 if [[ "$SYSTEM_TYPE" != *"server"* ]]; then
