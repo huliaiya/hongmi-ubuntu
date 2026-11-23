@@ -4,7 +4,7 @@ set -e
 SYSTEM_TYPE="${SYSTEM_TYPE:-ubuntu-server}"
 DESKTOP_ENV="${DESKTOP_ENV:-}"
 DEBIAN_VERSION="${DEBIAN_VERSION:-trixie}"
-UBUNTU_VERSION="${UBUNTU_VERSION:-noble}"
+UBUNTU_VERSION="${UBUNTU_VERSION:-resolute}"
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 📦 安装软件包"
 
