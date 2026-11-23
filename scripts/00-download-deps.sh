@@ -2,11 +2,11 @@
 # =============================================================================
 # 准备构建依赖
 # -----------------------------------------------------------------------------
-# 内核 image / headers：由本仓库 scripts/build-kernel.sh 从源码现场编译（不再下载）
-# firmware / alsa deb、Venus VAAPI 驱动源码：从上游获取二进制/源码素材
+# 内核 image / headers / firmware / alsa deb：从 kernel-deb 的 release 下载预编译包
+# Venus VAAPI 驱动源码：从上游获取源码素材
 #
 # 使用方式：
-#   bash scripts/00-download-deps.sh <内核版本> [内核包仓库(仅取 firmware/alsa)]
+#   bash scripts/00-download-deps.sh <内核版本> [内核 deb 仓库]
 # =============================================================================
 set -e
 
@@ -21,16 +21,20 @@ echo "[$(date +'%Y-%m-%d %H:%M:%S')] 📦 准备构建依赖"
 echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 内核版本: ${KERNEL_VERSION}"
 mkdir -p "$DEBS_DIR"
 
-# ---------- 1) 内核 image/headers：本仓库从源码编译 ----------
-echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 从源码编译内核 (build-kernel.sh) ..."
-bash "$SCRIPT_DIR/build-kernel.sh" "$KERNEL_VERSION" "$DEBS_DIR"
+# ---------- 1) 内核 image/headers：下载预编译 deb（几分钟完成，不再从源码编译） ----------
+KERNEL_RELEASE="https://github.com/$REPO/releases/download/kernel-v${KERNEL_VERSION}"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 下载预编译内核 deb ..."
+curl -fsSL -o "$DEBS_DIR/linux-image-xiaomi-raphael.deb" \
+    "$KERNEL_RELEASE/linux-image-xiaomi-raphael.deb"
+curl -fsSL -o "$DEBS_DIR/linux-headers-xiaomi-raphael.deb" \
+    "$KERNEL_RELEASE/linux-headers-xiaomi-raphael.deb"
 
-# ---------- 2) firmware / alsa deb（二进制固件与 UCM 配置，非编译产物） ----------
+# ---------- 2) firmware / alsa deb（二进制固件与 UCM 配置） ----------
 echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 获取 firmware / alsa deb ..."
 curl -fsSL -o "$DEBS_DIR/firmware-xiaomi-raphael.deb" \
-    "https://github.com/$REPO/releases/download/kernel-v${KERNEL_VERSION}/firmware-xiaomi-raphael.deb"
+    "$KERNEL_RELEASE/firmware-xiaomi-raphael.deb"
 curl -fsSL -o "$DEBS_DIR/alsa-xiaomi-raphael.deb" \
-    "https://github.com/$REPO/releases/download/kernel-v${KERNEL_VERSION}/alsa-xiaomi-raphael.deb"
+    "$KERNEL_RELEASE/alsa-xiaomi-raphael.deb"
 
 # ---------- 3) Venus VAAPI 驱动源码（构建期内编译安装） ----------
 echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 下载 Venus VAAPI 驱动源码 ..."
