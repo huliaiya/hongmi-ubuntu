@@ -36,7 +36,20 @@ curl -fsSL -o "$DEBS_DIR/firmware-xiaomi-raphael.deb" \
 curl -fsSL -o "$DEBS_DIR/alsa-xiaomi-raphael.deb" \
     "$KERNEL_RELEASE/alsa-xiaomi-raphael.deb"
 
-# ---------- 3) Venus VAAPI 驱动源码（构建期内编译安装） ----------
+# ---------- 3) hexagonrpcd + libhexagonrpc（SDSP 传感器守护进程，从 plucky backport） ----------
+# hexagonrpcd 在 noble 官方源中不存在，但从 Ubuntu plucky 源 backport 的两个 arm64 deb
+# 仅依赖 adduser/libc6，noble 完全满足，可安全安装。
+HEX_BASE="http://ports.ubuntu.com/ubuntu-ports/pool/universe/h/hexagonrpc"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ backport hexagonrpcd (来自 plucky) ..."
+curl -fsSL -o "$DEBS_DIR/libhexagonrpc0.3_0.3.2-1_arm64.deb" \
+    "$HEX_BASE/libhexagonrpc0.3_0.3.2-1_arm64.deb"
+curl -fsSL -o "$DEBS_DIR/hexagonrpcd_0.3.2-1_arm64.deb" \
+    "$HEX_BASE/hexagonrpcd_0.3.2-1_arm64.deb"
+# 校验 sha256，确保 deb 完整且与 plucky 官方索引一致
+echo "c27d54320f09c6484e5d38574c22551dd7b2f060a25f03204f4f5f50210d2b10  $DEBS_DIR/libhexagonrpc0.3_0.3.2-1_arm64.deb" | sha256sum -c - >/dev/null
+echo "d98d2e3bf4d1e005caffe5a2e3259f67f7a4cabaad7ca77aebe8b52170b47b56  $DEBS_DIR/hexagonrpcd_0.3.2-1_arm64.deb" | sha256sum -c - >/dev/null
+
+# ---------- 4) Venus VAAPI 驱动源码（构建期内编译安装） ----------
 echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 下载 Venus VAAPI 驱动源码 ..."
 curl -fsSL -o "$DEBS_DIR/venus-vaapi-driver.tar.gz" \
     "https://github.com/snowf14k3/venus-vaapi-driver/archive/refs/heads/main.tar.gz"
