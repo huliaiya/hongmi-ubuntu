@@ -4,7 +4,7 @@ set -e
 SYSTEM_TYPE="${SYSTEM_TYPE:-ubuntu-server}"
 DESKTOP_ENV="${DESKTOP_ENV:-}"
 DEBIAN_VERSION="${DEBIAN_VERSION:-trixie}"
-UBUNTU_VERSION="${UBUNTU_VERSION:-resolute}"
+UBUNTU_VERSION="${UBUNTU_VERSION:-noble}"
 
 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 📦 安装软件包"
 
@@ -26,7 +26,8 @@ elif [[ "$SYSTEM_TYPE" == *"ubuntu-"* ]]; then
     fi
 fi
 
-DEVICE_PACKAGES="rmtfs protection-domain-mapper tqftpserv qrtr-tools libqmi-utils hexagonrpcd"
+# 注意：hexagonrpcd 在 Ubuntu noble(24.04) 官方源中不存在，故不安装（plucky/resolute 起才有）
+DEVICE_PACKAGES="rmtfs protection-domain-mapper tqftpserv qrtr-tools libqmi-utils"
 
 if [[ "$SYSTEM_TYPE" != *"server"* ]]; then
     case "$DESKTOP_ENV" in
@@ -79,20 +80,6 @@ install -m 755 scripts/msm-modem-uim-selection rootdir/usr/libexec/
 install -m 644 scripts/msm-modem-uim-selection.service rootdir/lib/systemd/system/
 chroot rootdir systemctl enable msm-modem-uim-selection 2>/dev/null || true
 
-# hexagonrpcd（SDSP 传感器守护进程）：固定 sdsp 设备、附加 sensorspd、崩溃自动重启
-# 直接调用真实二进制，绕开 wrapper 默认的 -R /var/lib/droid-juicer/sensors/ 参数
-mkdir -p rootdir/etc/systemd/system/hexagonrpcd.service.d/
-cat > rootdir/etc/systemd/system/hexagonrpcd.service.d/sdsp.conf <<EOF
-[Service]
-ExecStart=
-ExecStart=/usr/libexec/hexagonrpc/hexagonrpcd -f /dev/fastrpc-sdsp -d sdsp -s
-Restart=always
-RestartSec=3
-EOF
-# 尽早启动 hexagonrpcd（移除 After=multi-user.target），
-# 避免被 UIM 阻塞拖到 SLPI 看门狗窗口之外（SLPI sensor_process 停滞崩溃）
-sed -i '/^After=multi-user.target$/d' rootdir/usr/lib/systemd/system/hexagonrpcd.service 2>/dev/null || true
-chroot rootdir systemctl enable hexagonrpcd 2>/dev/null || true
 # 固件已内置在镜像中，无需 droid-juicer 提取
 chroot rootdir systemctl mask droid-juicer 2>/dev/null || true
 
